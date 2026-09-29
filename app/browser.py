@@ -128,6 +128,20 @@ async def open_private_messages(page: Page, timeout_ms: int = 15_000) -> None:
         )
 
     if await _any_visible(page, LOGIN_REQUIRED_MARKERS, timeout_ms=2_000):
+        LOGGER.error("检测到登录页面")
+        LOGGER.error("当前页面 URL: %s", page.url)
+        LOGGER.error("当前页面标题: %s", await page.title())
+
+        try:
+            diagnostic = await _collect_safe_diagnostic(
+                page,
+                LOGIN_REQUIRED_MARKERS,
+                RISK_MARKERS,
+            )
+            LOGGER.error("页面安全诊断:\n%s", diagnostic)
+        except Exception:
+            LOGGER.exception("收集页面诊断失败")
+
         raise AuthenticationError(
             "进入抖音私信页面后登录状态失效"
         )
@@ -153,24 +167,24 @@ async def open_private_messages(page: Page, timeout_ms: int = 15_000) -> None:
                 "抖音私信页面要求进行安全验证，任务已停止"
             )
 
-if await _any_visible(page, LOGIN_REQUIRED_MARKERS, timeout_ms=2_000):
-    LOGGER.error("检测到登录页面")
-    LOGGER.error("当前页面 URL: %s", page.url)
-    LOGGER.error("当前页面标题: %s", await page.title())
+        if await _any_visible(page, LOGIN_REQUIRED_MARKERS, timeout_ms=2_000):
+            LOGGER.error("重试过程中检测到登录页面")
+            LOGGER.error("当前页面 URL: %s", page.url)
+            LOGGER.error("当前页面标题: %s", await page.title())
 
-    try:
-        diagnostic = await _collect_safe_diagnostic(
-            page,
-            LOGIN_REQUIRED_MARKERS,
-            RISK_MARKERS,
-        )
-        LOGGER.error("页面安全诊断:\n%s", diagnostic)
-    except Exception:
-        LOGGER.exception("收集页面诊断失败")
+            try:
+                diagnostic = await _collect_safe_diagnostic(
+                    page,
+                    LOGIN_REQUIRED_MARKERS,
+                    RISK_MARKERS,
+                )
+                LOGGER.error("页面安全诊断:\n%s", diagnostic)
+            except Exception:
+                LOGGER.exception("收集页面诊断失败")
 
-    raise AuthenticationError(
-        "进入抖音私信页面后登录状态失效"
-    )
+            raise AuthenticationError(
+                "进入抖音私信页面后登录状态失效"
+            )
 
         if attempt < SEARCH_BOX_RETRIES:
             LOGGER.warning(
