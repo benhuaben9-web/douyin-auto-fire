@@ -115,58 +115,89 @@ async def verify_login(page: Page, timeout_ms: int = 15_000) -> None:
         raise AuthenticationError("抖音登录状态已失效")
     if not await _any_visible(page, LOGIN_MARKERS, timeout_ms=timeout_ms):
         raise AuthenticationError("未检测到抖音私信页面，登录状态可能失效或页面结构已变化")
-
-
 async def open_private_messages(page: Page, timeout_ms: int = 15_000) -> None:
     await page.goto(DOUYIN_CHAT_URL, wait_until="domcontentloaded", timeout=45_000)
-    # 1. Explicit risk-control page takes priority, independently of login state.
+
     if await _any_visible(page, RISK_MARKERS, timeout_ms=2_000):
         raise RiskControlError("抖音私信页面要求进行安全验证，任务已停止")
-    # 2. An explicit login page is the only signal that lets us attribute to
-    #    expired credentials. Marker absence does not imply the credentials are
-    #    valid, so search-box detection (steps 3/4) is kept separate.
-if await _any_visible(page, LOGIN_REQUIRED_MARKERS, timeout_ms=2_000):
+
+    if await _any_visible(page, LOGIN_REQUIRED_MARKERS, timeout_ms=2_000):
         LOGGER.error("检测到登录提示，当前页面 URL: %s", _safe_url(page.url))
         LOGGER.error("页面标题: %s", await page.title())
-        diagnostic = await _collect_safe_diagnostic(page, LOGIN_REQUIRED_MARKERS, RISK_MARKERS)
+        diagnostic = await _collect_safe_diagnostic(
+            page, LOGIN_REQUIRED_MARKERS, RISK_MARKERS
+        )
         LOGGER.error("页面诊断:\n%s", diagnostic)
         raise AuthenticationError("进入抖音私信页面后登录状态失效")
 
-    # 3. Detect the friend search box. The chat page is a SPA whose search box is
-    #    mounted asynchronously after domcontentloaded; a single detection round
-    #    occasionally misses it on a cold runner. Retry a few times, reloading the
-    #    page when the first round fails, before concluding anything.
     for attempt in range(1, SEARCH_BOX_RETRIES + 1):
-        matched = await _first_visible_selector(page, SEARCH_INPUTS, timeout_ms)
+        matched = await _first_visible_selector(
+            page, SEARCH_INPUTS, timeout_ms
+        )
+
         if matched is not None:
-            LOGGER.info("检测到好友搜索框: selector=%s, 第 %d 次尝试", matched, attempt)
+            LOGGER.info(
+                "检测到好友搜索框: selector=%s, 第 %d 次尝试",
+                matched,
+                attempt,
+            )
             await page.wait_for_timeout(3_000)
             return
-        # The search box is missing; a freshly shown login prompt may only have
-        # appeared during the wait, so re-check before deciding to retry.
+
         if await _any_visible(page, RISK_MARKERS, timeout_ms=2_000):
-            raise RiskControlError("抖音私信页面要求进行安全验证，任务已停止")
+            raise RiskControlError(
+                "抖音私信页面要求进行安全验证，任务已停止"
+            )
+
         if await _any_visible(page, LOGIN_REQUIRED_MARKERS, timeout_ms=2_000):
-            raise AuthenticationError("进入抖音私信页面后登录状态失效")
+            LOGGER.error(
+                "重试过程中检测到登录提示，当前页面 URL: %s",
+                _safe_url(page.url),
+            )
+            diagnostic = await _collect_safe_diagnostic(
+                page, LOGIN_REQUIRED_MARKERS, RISK_MARKERS
+            )
+            LOGGER.error("页面诊断:\n%s", diagnostic)
+            raise AuthenticationError(
+                "进入抖音私信页面后登录状态失效"
+            )
+
         if attempt < SEARCH_BOX_RETRIES:
-            LOGGER.warning("未检测到好友搜索框，第 %d/%d 次尝试，准备重试", attempt, SEARCH_BOX_RETRIES)
+            LOGGER.warning(
+                "未检测到好友搜索框，第 %d/%d 次尝试，准备重试",
+                attempt,
+                SEARCH_BOX_RETRIES,
+            )
+
             if attempt == 1:
-                # Reload once: a fresh load usually mounts the SPA search box.
                 try:
-                    await page.reload(wait_until="domcontentloaded", timeout=45_000)
+                    await page.reload(
+                        wait_until="domcontentloaded",
+                        timeout=45_000,
+                    )
                 except Exception:
-                    LOGGER.exception("reload 失败，改为重新访问私信页面")
-                    await page.goto(DOUYIN_CHAT_URL, wait_until="domcontentloaded", timeout=45_000)
+                    LOGGER.exception(
+                        "reload 失败，改为重新访问私信页面"
+                    )
+                    await page.goto(
+                        DOUYIN_CHAT_URL,
+                        wait_until="domcontentloaded",
+                        timeout=45_000,
+                    )
             else:
                 await page.wait_for_timeout(_SEARCH_RETRY_DELAY_MS)
 
-    # 4. Search box is still missing after all attempts: emit a safe structural
-    #    diagnostic and choose the exception type based on evidence. Only an
-    #    explicit login marker justifies AuthenticationError; a page that is
-    #    already on /chat merely failed to render the search box in time.
-    diagnostic = await _collect_safe_diagnostic(page, LOGIN_REQUIRED_MARKERS, RISK_MARKERS)
-    LOGGER.error("多次重试后仍未检测到好友搜索框，页面安全诊断:\n%s", diagnostic)
-    raise SearchBoxNotReadyError(f"私信页面已打开，但搜索框在 {SEARCH_BOX_RETRIES} 次重试后仍未就绪")
+    diagnostic = await _collect_safe_diagnostic(
+        page, LOGIN_REQUIRED_MARKERS, RISK_MARKERS
+    )
+    LOGGER.error(
+        "多次重试后仍未检测到好友搜索框，页面安全诊断:\n%s",
+        diagnostic,
+    )
+    raise SearchBoxNotReadyError(
+        f"私信页面已打开，但搜索框在 "
+        f"{SEARCH_BOX_RETRIES} 次重试后仍未就绪"
+    )
 
 
 async def save_trace(session: BrowserSession, path: Path) -> None:
