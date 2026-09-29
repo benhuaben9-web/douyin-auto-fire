@@ -123,4 +123,4 @@ jobs:
         with:
           name: douyin-failure-${{ github.run_id }}
           path: artifacts/
-          retention-days: 3 
+          retention-days: 3
