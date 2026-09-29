@@ -129,10 +129,11 @@ async def open_private_messages(page: Page, timeout_ms: int = 15_000) -> None:
 
     if await _any_visible(page, LOGIN_REQUIRED_MARKERS, timeout_ms=2_000):
         LOGGER.error("检测到登录页面")
-        LOGGER.error("当前页面 URL: %s", page.url)
-        LOGGER.error("当前页面标题: %s", await page.title())
 
         try:
+            LOGGER.error("当前页面 URL: %s", page.url)
+            LOGGER.error("当前页面标题: %s", await page.title())
+
             diagnostic = await _collect_safe_diagnostic(
                 page,
                 LOGIN_REQUIRED_MARKERS,
@@ -169,10 +170,11 @@ async def open_private_messages(page: Page, timeout_ms: int = 15_000) -> None:
 
         if await _any_visible(page, LOGIN_REQUIRED_MARKERS, timeout_ms=2_000):
             LOGGER.error("重试过程中检测到登录页面")
-            LOGGER.error("当前页面 URL: %s", page.url)
-            LOGGER.error("当前页面标题: %s", await page.title())
 
             try:
+                LOGGER.error("当前页面 URL: %s", page.url)
+                LOGGER.error("当前页面标题: %s", await page.title())
+
                 diagnostic = await _collect_safe_diagnostic(
                     page,
                     LOGIN_REQUIRED_MARKERS,
