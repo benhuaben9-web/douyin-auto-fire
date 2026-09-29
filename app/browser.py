@@ -116,23 +116,27 @@ async def verify_login(page: Page, timeout_ms: int = 15_000) -> None:
     if not await _any_visible(page, LOGIN_MARKERS, timeout_ms=timeout_ms):
         raise AuthenticationError("未检测到抖音私信页面，登录状态可能失效或页面结构已变化")
 async def open_private_messages(page: Page, timeout_ms: int = 15_000) -> None:
-    await page.goto(DOUYIN_CHAT_URL, wait_until="domcontentloaded", timeout=45_000)
+    await page.goto(
+        DOUYIN_CHAT_URL,
+        wait_until="domcontentloaded",
+        timeout=45_000,
+    )
 
     if await _any_visible(page, RISK_MARKERS, timeout_ms=2_000):
-        raise RiskControlError("抖音私信页面要求进行安全验证，任务已停止")
+        raise RiskControlError(
+            "抖音私信页面要求进行安全验证，任务已停止"
+        )
 
     if await _any_visible(page, LOGIN_REQUIRED_MARKERS, timeout_ms=2_000):
-        LOGGER.error("检测到登录提示，当前页面 URL: %s", _safe_url(page.url))
-        LOGGER.error("页面标题: %s", await page.title())
-        diagnostic = await _collect_safe_diagnostic(
-            page, LOGIN_REQUIRED_MARKERS, RISK_MARKERS
+        raise AuthenticationError(
+            "进入抖音私信页面后登录状态失效"
         )
-        LOGGER.error("页面诊断:\n%s", diagnostic)
-        raise AuthenticationError("进入抖音私信页面后登录状态失效")
 
     for attempt in range(1, SEARCH_BOX_RETRIES + 1):
         matched = await _first_visible_selector(
-            page, SEARCH_INPUTS, timeout_ms
+            page,
+            SEARCH_INPUTS,
+            timeout_ms,
         )
 
         if matched is not None:
@@ -150,14 +154,6 @@ async def open_private_messages(page: Page, timeout_ms: int = 15_000) -> None:
             )
 
         if await _any_visible(page, LOGIN_REQUIRED_MARKERS, timeout_ms=2_000):
-            LOGGER.error(
-                "重试过程中检测到登录提示，当前页面 URL: %s",
-                _safe_url(page.url),
-            )
-            diagnostic = await _collect_safe_diagnostic(
-                page, LOGIN_REQUIRED_MARKERS, RISK_MARKERS
-            )
-            LOGGER.error("页面诊断:\n%s", diagnostic)
             raise AuthenticationError(
                 "进入抖音私信页面后登录状态失效"
             )
@@ -185,15 +181,21 @@ async def open_private_messages(page: Page, timeout_ms: int = 15_000) -> None:
                         timeout=45_000,
                     )
             else:
-                await page.wait_for_timeout(_SEARCH_RETRY_DELAY_MS)
+                await page.wait_for_timeout(
+                    _SEARCH_RETRY_DELAY_MS
+                )
 
     diagnostic = await _collect_safe_diagnostic(
-        page, LOGIN_REQUIRED_MARKERS, RISK_MARKERS
+        page,
+        LOGIN_REQUIRED_MARKERS,
+        RISK_MARKERS,
     )
+
     LOGGER.error(
         "多次重试后仍未检测到好友搜索框，页面安全诊断:\n%s",
         diagnostic,
     )
+
     raise SearchBoxNotReadyError(
         f"私信页面已打开，但搜索框在 "
         f"{SEARCH_BOX_RETRIES} 次重试后仍未就绪"
