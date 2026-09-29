@@ -9,7 +9,6 @@ LOGIN_MARKERS = (
 LOGIN_REQUIRED_MARKERS = (
     'text=扫码登录',
     'text=验证码登录',
-    'text=登录后',
 )
 RISK_MARKERS = (
     'text=安全验证',
