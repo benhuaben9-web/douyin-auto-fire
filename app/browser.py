@@ -125,12 +125,12 @@ async def open_private_messages(page: Page, timeout_ms: int = 15_000) -> None:
     # 2. An explicit login page is the only signal that lets us attribute to
     #    expired credentials. Marker absence does not imply the credentials are
     #    valid, so search-box detection (steps 3/4) is kept separate.
-    if await _any_visible(page, LOGIN_REQUIRED_MARKERS, timeout_ms=2_000):
-    LOGGER.error("检测到登录提示，当前页面 URL: %s", _safe_url(page.url))
-    LOGGER.error("页面标题: %s", await page.title())
-    diagnostic = await _collect_safe_diagnostic(page, LOGIN_REQUIRED_MARKERS, RISK_MARKERS)
-    LOGGER.error("页面诊断:\n%s", diagnostic)
-    raise AuthenticationError("进入抖音私信页面后登录状态失效")
+if await _any_visible(page, LOGIN_REQUIRED_MARKERS, timeout_ms=2_000):
+        LOGGER.error("检测到登录提示，当前页面 URL: %s", _safe_url(page.url))
+        LOGGER.error("页面标题: %s", await page.title())
+        diagnostic = await _collect_safe_diagnostic(page, LOGIN_REQUIRED_MARKERS, RISK_MARKERS)
+        LOGGER.error("页面诊断:\n%s", diagnostic)
+        raise AuthenticationError("进入抖音私信页面后登录状态失效")
 
     # 3. Detect the friend search box. The chat page is a SPA whose search box is
     #    mounted asynchronously after domcontentloaded; a single detection round
